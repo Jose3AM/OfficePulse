@@ -1,0 +1,9 @@
+boto3[crt]
+polars
+pyarrow
+duckdb
+matplotlib
+numpy
+scikit-learn
+streamlit
+plotly

@@ -1,0 +1,31 @@
+# PlatformIO y configuracion local del editor
+.pio/
+.vscode/
+
+# Credenciales del dispositivo (usar las plantillas *.example.h)
+include/secrets.h
+include/aws_certs.h
+*.pem
+*.key
+*.crt
+.env
+.env.*
+!.env.example
+credentials
+credentials.*
+
+# Entornos, caches y bytecode de Python
+.venv/
+**/.venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Archivos locales y logs
+.DS_Store
+Thumbs.db
+*.log
