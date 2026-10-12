@@ -1,67 +1,67 @@
 # OfficePulse
 
-OfficePulse es una plataforma IoT de analítica ambiental que recorre el ciclo completo de un dato real: captura física, decisión local en un ESP32, transporte seguro a AWS, almacenamiento histórico, procesamiento de datos, detección de anomalías y visualización.
+OfficePulse is an IoT environmental analytics platform that covers the complete lifecycle of real-world data: physical capture, local decision-making on an ESP32, secure transport to AWS, historical storage, data processing, anomaly detection, and visualization.
 
-El repositorio representa un MVP terminado y contiene un dataset de ejemplo obtenido de hardware real. Los resultados numéricos documentados corresponden al snapshot incluido actualmente; al descargar nuevas sesiones y reconstruir el pipeline, esos valores cambiarán.
+The repository represents a completed MVP and contains a sample dataset obtained from real hardware. The documented numerical results correspond to the snapshot currently included; when new sessions are downloaded and the pipeline is rebuilt, those values will change.
 
-## Caso de uso
+## Use case
 
-Una oficina, aula, laboratorio o espacio de trabajo necesita registrar temperatura, humedad e iluminación para conservar un histórico, comprobar la calidad de las mediciones y analizar cambios ambientales. OfficePulse instrumenta ese escenario con un nodo físico y mantiene trazabilidad desde cada lectura hasta el dashboard.
+An office, classroom, laboratory, or workspace needs to record temperature, humidity, and lighting in order to preserve a historical record, verify measurement quality, and analyze environmental changes. OfficePulse instruments this scenario with a physical node and maintains traceability from each reading to the dashboard.
 
-El LED demuestra una decisión de control en el borde; no controla HVAC ni ventilación.
+The LED demonstrates an edge control decision; it does not control HVAC or ventilation.
 
-## Qué demuestra el proyecto
+## What the project demonstrates
 
-Sensores físicos -> ESP32 y lógica edge -> JSON -> MQTT/TLS
+Sensors -> ESP32 and edge logic -> JSON -> MQTT/TLS
 -> AWS IoT Core -> IoT Rule -> Amazon S3 RAW
--> boto3 -> validación con Polars -> CURATED / QUARANTINE
+-> boto3 -> Polars validation -> CURATED / QUARANTINE
 -> Parquet -> DuckDB / SQL -> feature engineering
--> detección de anomalías -> Streamlit
+-> anomaly detection -> Streamlit
 
-El flujo integra firmware, seguridad IoT, servicios AWS, data engineering, controles de calidad, analítica y una aplicación local sin introducir infraestructura que el MVP no necesita.
+The flow integrates firmware, IoT security, AWS services, data engineering, quality controls, analytics, and a local application without introducing infrastructure that the MVP does not need.
 
-## Arquitectura
+## Architecture
 
-![Arquitectura de OfficePulse](Architecture.png)
+![OfficePulse Architecture](Architecture.png)
 
-La solución se divide en tres capas:
+The solution is divided into three layers:
 
-- **Device:** DHT11 y LDR conectados a un ESP32; adquisición, trazabilidad y control local del LED.
-- **AWS Cloud:** autenticación X.509, recepción MQTT/TLS en AWS IoT Core, enriquecimiento mediante una IoT Rule, almacenamiento RAW en S3 y observabilidad en CloudWatch.
-- **Data & Analytics:** descarga incremental, validación, Parquet, consultas con DuckDB, features temporales, detección de anomalías y dashboard Streamlit.
+- **Device:** DHT11 and LDR connected to an ESP32; acquisition, traceability, and local LED control.
+- **AWS Cloud:** X.509 authentication, MQTT/TLS reception through AWS IoT Core, enrichment through an IoT Rule, RAW storage in S3, and observability with CloudWatch.
+- **Data & Analytics:** incremental download, validation, Parquet, DuckDB queries, temporal features, anomaly detection, and Streamlit dashboard.
 
 ## Hardware
 
-- ESP32 DevKit V1 con módulo ESP32-WROOM-32.
-- Sensor DHT11 para temperatura y humedad.
-- Sensor LDR para iluminación.
-- LED como actuador.
-- Dos resistencias de 10 kΩ.
-- Una resistencia de 330 Ω.
-- Protoboard y conexiones.
+- ESP32 DevKit V1 with an ESP32-WROOM-32 module.
+- DHT11 sensor for temperature and humidity.
+- LDR sensor for lighting.
+- LED as an actuator.
+- Two 10 kΩ resistors.
+- One 330 Ω resistor.
+- Breadboard and connections.
 
-Los valores usados por el prototipo son `DHT_PIN = 15`, `LDR_PIN = 34`, `LED_PIN = 23` y `DARK_THRESHOLD = 200`. Pueden ajustarse en `src/main.cpp` para otro montaje, respetando las capacidades eléctricas del hardware utilizado.
+The prototype uses `DHT_PIN = 15`, `LDR_PIN = 34`, `LED_PIN = 23`, and `DARK_THRESHOLD = 200`. These values can be adjusted in `src/main.cpp` for a different setup while respecting the electrical capabilities of the hardware being used.
 
-## Procesamiento en el borde
+## Edge processing
 
-El ESP32 aplica esta regla sin depender de AWS para el sensor LDR:
+The ESP32 applies this rule for the LDR sensor without depending on AWS:
 
 ```text
 light_raw < 200  -> light_state = "dark"   -> LED ON
 light_raw >= 200 -> light_state = "bright" -> LED OFF
 ```
 
-De forma predeterminada, el firmware `0.3.0` publica una lectura por minuto con device/client ID `office-node-01` en `officepulse/office-node-01/telemetry`. Un despliegue propio puede cambiar `DEVICE_ID`, `AWS_IOT_CLIENT_ID`, `AWS_IOT_TOPIC` y `READING_INTERVAL_MS` en `src/main.cpp`; el certificado, la IoT Policy, la IoT Rule y el prefijo S3 deben permitir los mismos identificadores.
+By default, firmware version `0.3.0` publishes one reading per minute using device/client ID `office-node-01` on `officepulse/office-node-01/telemetry`. A custom deployment can change `DEVICE_ID`, `AWS_IOT_CLIENT_ID`, `AWS_IOT_TOPIC`, and `READING_INTERVAL_MS` in `src/main.cpp`; the certificate, IoT Policy, IoT Rule, and S3 prefix must allow the same identifiers.
 
-## Circuito electrónico
+## Electronic circuit
 
-![Esquema electrónico de OfficePulse](Circuit.svg)
+![OfficePulse Electronic Schematic](Circuit.svg)
 
-El esquema representa las conexiones utilizadas por OfficePulse. El ESP32 DevKit V1, basado en el módulo ESP32-WROOM-32, trabaja con lógica de 3.3 V. El pin DATA del DHT11 se conecta a GPIO15 y utiliza una resistencia pull-up de 10 kΩ. El LDR se conecta a GPIO34 mediante un divisor de voltaje con una resistencia de 10 kΩ. El LED se controla desde GPIO23 a través de la resistencia limitadora de 330 Ω mostrada en el esquema.
+The schematic represents the connections used by OfficePulse. The ESP32 DevKit V1, based on the ESP32-WROOM-32 module, uses 3.3 V logic. The DHT11 DATA pin is connected to GPIO15 and uses a 10 kΩ pull-up resistor. The LDR is connected to GPIO34 through a voltage divider with a 10 kΩ resistor. The LED is controlled from GPIO23 through the 330 Ω current-limiting resistor shown in the schematic.
 
-## Telemetría
+## Telemetry
 
-Cada mensaje identifica el dispositivo, la sesión experimental y el arranque físico. Los valores siguientes son ilustrativos y deben sustituirse por los identificadores y mediciones de cada despliegue:
+Each message identifies the device, the experimental session, and the physical boot. The following values are illustrative and should be replaced with the identifiers and measurements from each deployment:
 
 ```json
 {
@@ -82,30 +82,30 @@ Cada mensaje identifica el dispositivo, la sesión experimental y el arranque f�
 }
 ```
 
-`boot_id`, `sequence_number`, `device_timestamp_ms` y `uptime_ms` permiten detectar reinicios, gaps y problemas de orden. La ingesta incorpora `aws_ingest_ts` y `mqtt_topic`, usados para medir latencia y conservar el origen del mensaje.
+`boot_id`, `sequence_number`, `device_timestamp_ms`, and `uptime_ms` make it possible to detect restarts, gaps, and ordering issues. Ingestion adds `aws_ingest_ts` and `mqtt_topic`, which are used to measure latency and preserve the origin of each message.
 
-## AWS y seguridad
+## AWS and security
 
-OfficePulse utiliza exclusivamente:
+OfficePulse uses only:
 
-- **AWS IoT Core** para la conexión del dispositivo y la recepción MQTT.
-- **AWS IoT Rules Engine** para enrutar y enriquecer la telemetría.
-- **Amazon S3** como capa RAW inmutable.
-- **AWS IAM** para el acceso local con AWS CLI y boto3.
-- **Amazon CloudWatch** para observabilidad básica del flujo IoT.
-- **AWS Budgets** para control de gasto.
+- **AWS IoT Core** for device connectivity and MQTT message reception.
+- **AWS IoT Rules Engine** for routing and enriching telemetry.
+- **Amazon S3** as the immutable RAW layer.
+- **AWS IAM** for local access through AWS CLI and boto3.
+- **Amazon CloudWatch** for basic observability of the IoT flow.
+- **AWS Budgets** for cost control.
 
-El dispositivo se autentica mediante MQTT sobre TLS, certificado X.509 y una AWS IoT Policy. El pipeline usa la cadena de credenciales de boto3; no contiene access keys en el código. Los archivos locales con Wi-Fi, endpoint, certificado y clave privada están excluidos de Git y cuentan con plantillas publicables en `include/*.example.h`.
+The device authenticates using MQTT over TLS, an X.509 certificate, and an AWS IoT Policy. The pipeline uses the boto3 credential chain and does not contain access keys in the code. Local files containing Wi-Fi credentials, endpoint information, certificates, and the private key are excluded from Git and have publishable templates in `include/*.example.h`.
 
-Los recursos AWS no se crean automáticamente desde este repositorio. Para usar una cuenta propia es necesario preparar una vez:
+AWS resources are not created automatically from this repository. To use your own AWS account, the following resources must be prepared once:
 
-1. Un Thing de AWS IoT, un certificado activo y una IoT Policy con permisos limitados al client ID y al topic elegidos.
-2. Un bucket S3 para conservar los mensajes RAW.
-3. Una IoT Rule que reciba la telemetría, añada los campos requeridos por el pipeline y escriba cada mensaje como un objeto independiente en S3.
-4. Un rol que AWS IoT pueda asumir con permiso `s3:PutObject` sobre el prefijo de destino.
-5. Una identidad local con `s3:ListBucket` y `s3:GetObject` para ejecutar `download_raw.py`.
+1. An AWS IoT Thing, an active certificate, and an IoT Policy with permissions limited to the selected client ID and topic.
+2. An S3 bucket to preserve RAW messages.
+3. An IoT Rule that receives telemetry, adds the fields required by the pipeline, and writes each message as an independent object in S3.
+4. A role that AWS IoT can assume with `s3:PutObject` permission on the destination prefix.
+5. A local identity with `s3:ListBucket` and `s3:GetObject` permissions to run `download_raw.py`.
 
-Para el topic predeterminado, una configuración equivalente de la IoT Rule es:
+For the default topic, an equivalent IoT Rule configuration is:
 
 ```sql
 SELECT
@@ -115,163 +115,164 @@ SELECT
 FROM 'officepulse/+/telemetry'
 ```
 
-La acción S3 puede usar una clave como `raw/${topic(2)}/${timestamp()}.json`. Si se cambia el topic o la estructura de la clave, también debe actualizarse `PREFIX` en `data-pipeline/src/download_raw.py`. Los nombres de bucket, cuenta, usuario, perfil, Thing, certificado y rol pertenecen al entorno de cada usuario y no deben copiarse literalmente desde otro despliegue.
+The S3 action can use a key such as `raw/${topic(2)}/${timestamp()}.json`. If the topic or key structure is changed, `PREFIX` in `data-pipeline/src/download_raw.py` must also be updated. Bucket names, account names, users, profiles, Things, certificates, and roles belong to each user's environment and should not be copied literally from another deployment.
 
-Referencias: [crear una IoT Rule](https://docs.aws.amazon.com/iot/latest/developerguide/iot-create-rule.html), [funciones SQL de AWS IoT](https://docs.aws.amazon.com/iot/latest/developerguide/iot-sql-functions.html) y [acción S3 de una IoT Rule](https://docs.aws.amazon.com/iot/latest/developerguide/s3-rule-action.html).
+References: [create an IoT Rule](https://docs.aws.amazon.com/iot/latest/developerguide/iot-create-rule.html), [AWS IoT SQL functions](https://docs.aws.amazon.com/iot/latest/developerguide/iot-sql-functions.html), and [S3 action for an IoT Rule](https://docs.aws.amazon.com/iot/latest/developerguide/s3-rule-action.html).
 
 ## Data Engineering
 
-El pipeline conserva la capa RAW y construye datasets analíticos por etapas:
+The pipeline preserves the RAW layer and builds analytical datasets in stages:
 
 ```text
-JSON RAW -> schema validation -> transformación
--> selección del boot principal por sesión
+JSON RAW -> schema validation -> transformation
+-> primary boot selection per session
 -> CURATED + QUARANTINE -> Parquet -> DuckDB / SQL
 ```
 
-Para cada `session_id`, el `boot_id` con más registros se considera la ejecución principal. Los registros de boots secundarios son técnicamente válidos, pero se guardan en QUARANTINE con la razón `non_primary_boot_for_session`; no se borran ni se presentan como datos corruptos. Por ello, las cantidades dependen de las capturas disponibles en `data/raw`.
+For each `session_id`, the `boot_id` with the highest number of records is considered the primary run. Records from secondary boots are technically valid, but they are stored in QUARANTINE with the reason `non_primary_boot_for_session`; they are not deleted or presented as corrupted data. Therefore, the record counts depend on the captures available in `data/raw`.
 
-## Calidad de datos del snapshot incluido
+## Data quality of the included snapshot
 
-Estos valores describen los archivos incluidos actualmente y no son constantes del pipeline. Se recalculan al ejecutar `build_dataset.py`.
+These values describe the files currently included and are not constants of the pipeline. They are recalculated when `build_dataset.py` is executed.
 
-| Control | Resultado |
+| Check | Result |
 |---|---:|
-| JSON RAW | 354 |
-| JSON válidos / corruptos | 354 / 0 |
+| RAW JSON | 354 |
+| Valid / corrupted JSON | 354 / 0 |
 | CURATED / QUARANTINE | 316 / 38 |
-| Duplicados | 0 |
+| Duplicates | 0 |
 | Sequence gaps | 0 |
-| Mensajes faltantes estimados | 0 |
-| Lecturas DHT inválidas | 0 |
-| Humedad inválida | 0 |
-| Iluminación inválida | 0 |
-| Errores de `light_state` | 0 |
-| Errores de lógica del LED | 0 |
+| Estimated missing messages | 0 |
+| Invalid DHT readings | 0 |
+| Invalid humidity | 0 |
+| Invalid lighting | 0 |
+| `light_state` errors | 0 |
+| LED logic errors | 0 |
 
-Conservar QUARANTINE separa la serie analítica sin sacrificar trazabilidad, auditabilidad ni integridad del RAW.
+Keeping QUARANTINE separate protects the analytical series without sacrificing traceability, auditability, or RAW data integrity.
 
-## Sesiones del snapshot incluido
+## Sessions in the included snapshot
 
-| Sesión | Propósito | Registros CURATED |
+| Session | Purpose | CURATED records |
 |---|---|---:|
-| `baseline_01` | Comportamiento normal para entrenamiento | 47 |
-| `baseline_02` | Comportamiento normal independiente para validación | 50 |
-| `light_transition_01` | Cambios controlados de iluminación | 93 |
-| `temperature_transition_01` | Perturbación térmica controlada | 126 |
+| `baseline_01` | Normal behavior for training | 47 |
+| `baseline_02` | Independent normal behavior for validation | 50 |
+| `light_transition_01` | Controlled lighting changes | 93 |
+| `temperature_transition_01` | Controlled thermal disturbance | 126 |
 
-Los baselines se capturaron aproximadamente cada minuto y las pruebas controladas aproximadamente cada 10 segundos. Para evitar que la frecuencia de muestreo sesgara el análisis, todas las sesiones se agregaron a ventanas de un minuto. El snapshot actual, sin incluir la captura demostrativa pendiente, produce 135 observaciones resampleadas y 131 observaciones ML-ready.
+The baseline sessions were captured approximately once per minute, while the controlled tests were captured approximately every 10 seconds. To prevent sampling frequency from biasing the analysis, all sessions were aggregated into one-minute windows. The current snapshot, excluding the pending demonstration capture, produces 135 resampled observations and 131 ML-ready observations.
 
-## Demostración paso a paso: `baseline_03`
+## Step-by-step demonstration: `baseline_03`
 
-`baseline_03` está reservada para la demostración completa del proyecto en video y para la documentación final. Esta sesión mostrará el flujo de principio a fin: configuración de `SESSION_ID` en el firmware, captura con el ESP32, envío mediante AWS IoT Core, almacenamiento en S3, descarga del RAW, construcción del dataset, generación de features, detección de anomalías y visualización en el dashboard.
+`baseline_03` is reserved for the complete project demonstration in the video and for the final documentation. This session will show the entire flow from beginning to end: configuring `SESSION_ID` in the firmware, capturing data with the ESP32, sending it through AWS IoT Core, storing it in S3, downloading the RAW data, building the dataset, generating features, detecting anomalies, and visualizing the results in the dashboard.
 
-Las cantidades de registros y las métricas de `baseline_03` no se fijan en este README antes de realizar la captura definitiva. Se obtendrán al seguir la sección **Cómo ejecutar el proyecto** y se documentarán después de completar y validar la demostración. Así, los resultados publicados corresponderán exactamente a la ejecución mostrada en el video.
+The record counts and metrics for `baseline_03` are not fixed in this README before the final capture is performed. They will be obtained by following the **How to run the project** section and documented after the demonstration has been completed and validated. This ensures that the published results correspond exactly to the execution shown in the video.
 
 ## Feature engineering
 
-El análisis modela dinámica temporal mediante deltas, tasas por minuto y magnitudes absolutas de cambio para temperatura, humedad e iluminación. Los detectores usan principalmente:
+The analysis models temporal dynamics using deltas, per-minute rates, and absolute change magnitudes for temperature, humidity, and lighting. The detectors mainly use:
 
 - `temperature_change_magnitude`
 - `humidity_change_magnitude`
 - `light_change_magnitude`
 
-`light_state` y `led_active` no se usan como entradas porque ya codifican la decisión edge y producirían leakage conceptual. `elapsed_minutes`, `samples_in_minute`, `led_active_ratio` y `dark_ratio` se conservan como contexto analítico.
+`light_state` and `led_active` are not used as inputs because they already encode the edge decision and would create conceptual leakage. `elapsed_minutes`, `samples_in_minute`, `led_active_ratio`, and `dark_ratio` are preserved as analytical context.
 
-## Detección de anomalías
+## Anomaly detection
 
-El prototipo funcional compara tres salidas:
+The functional prototype compares three outputs:
 
-1. Detector estadístico robusto basado en mediana, MAD, fallback a desviación estándar cuando `MAD = 0` y umbral `3.5`.
-2. Isolation Forest entrenado solo con las 46 observaciones ML-ready de `baseline_01` (`n_estimators = 300`, `contamination = "auto"`, `random_state = 42`). El código aplica como umbral el percentil 95 de los scores de entrenamiento.
-3. Consenso, activado solo cuando ambos detectores marcan la misma observación.
+1. A robust statistical detector based on median, MAD, fallback to standard deviation when `MAD = 0`, and threshold `3.5`.
+2. Isolation Forest trained only on the 46 ML-ready observations from `baseline_01` (`n_estimators = 300`, `contamination = "auto"`, `random_state = 42`). The code uses the 95th percentile of the training scores as the threshold.
+3. Consensus, activated only when both detectors flag the same observation.
 
-Resultados obtenidos con el snapshot incluido:
+Results obtained with the included snapshot:
 
-| Grupo de evaluación | Observaciones ML-ready | Flag rate de consenso |
+| Evaluation group | ML-ready observations | Consensus flag rate |
 |---|---:|---:|
-| Normal de entrenamiento (`baseline_01`) | 46 | 2.17 % |
-| Normal de validación (`baseline_02`) | 49 | 2.04 % |
-| Prueba de iluminación | 15 | 53.33 % |
-| Prueba de temperatura | 21 | 4.76 % |
+| Training normal (`baseline_01`) | 46 | 2.17 % |
+| Validation normal (`baseline_02`) | 49 | 2.04 % |
+| Lighting test | 15 | 53.33 % |
+| Temperature test | 21 | 4.76 % |
 
-Estos valores son **flag rates**, no accuracy, precision ni recall: no existe ground truth minuto a minuto. Cambian cuando se agregan nuevas sesiones `baseline_N` al grupo de validación. La transición de luz se detecta claramente; la perturbación térmica genera menos flags porque su cambio es gradual. El modelo no se presenta como production-ready ni como evidencia de generalización.
+These values are **flag rates**, not accuracy, precision, or recall: there is no minute-by-minute ground truth. They change when new `baseline_N` sessions are added to the validation group. The lighting transition is clearly detected; the thermal disturbance produces fewer flags because its change is gradual. The model is not presented as production-ready or as evidence of generalization.
 
 ## Dashboard
 
-El dashboard local consume los Parquet procesados con Streamlit, Plotly y Polars; no usa pandas.
+The local dashboard consumes processed Parquet files using Streamlit, Plotly, and Polars; it does not use pandas.
 
-- **Overview:** temperatura, humedad, luz, RSSI Wi-Fi, latencia de AWS, estado del LED y tendencias.
-- **Historical Analysis:** comparación de sesiones, históricos y calidad de datos.
-- **Anomaly Detection:** detectores estadístico e Isolation Forest, consenso, scores, registros marcados y filtros por sesión.
+- **Overview:** temperature, humidity, light, Wi-Fi RSSI, AWS latency, LED state, and trends.
+- **Historical Analysis:** session comparison, historical data, and data quality.
+- **Anomaly Detection:** statistical and Isolation Forest detectors, consensus, scores, flagged records, and session filters.
 
-No es un dashboard productivo en tiempo real ni una aplicación desplegada públicamente.
+It is not a production real-time dashboard or a publicly deployed application.
 
-## Observabilidad
+## Observability
 
-CloudWatch aporta visibilidad básica de conexión, publicación y ejecución de reglas mediante `PublishIn.Success`, `Connect.Success`, `RulesExecuted` y las métricas de éxito o fallo de la acción S3.
+CloudWatch provides basic visibility into connectivity, publishing, and rule execution through `PublishIn.Success`, `Connect.Success`, `RulesExecuted`, and the success or failure metrics of the S3 action.
 
-## Estimación ilustrativa de costos
+## Illustrative cost estimate
 
-Como referencia del MVP, se modeló en AWS Pricing Calculator un ESP32 conectado 24/7, un mensaje por minuto durante 30 días y la región `us-east-1`:
+As a reference for the MVP, AWS Pricing Calculator was used to model one ESP32 connected 24/7, publishing one message per minute for 30 days in the `us-east-1` region:
 
-- 43,200 mensajes, RulesTriggered y ActionsExecuted al mes.
-- Aproximadamente 43,200 operaciones S3 PUT y 43,200 S3 GET en el escenario calculado.
-- Aproximadamente **USD 3.29/mes** a precio de lista: IoT Core ~USD 0.06, S3 ~USD 0.23 y dashboard de CloudWatch ~USD 3.00.
+- 43,200 messages, RulesTriggered, and ActionsExecuted per month.
+- Approximately 43,200 S3 PUT operations and 43,200 S3 GET operations in the calculated scenario.
+- Approximately **USD 3.29/month** at list price: IoT Core ~USD 0.06, S3 ~USD 0.23, and CloudWatch dashboard ~USD 3.00.
 
-Esta cifra no constituye una cotización ni un costo garantizado para otros usuarios. El importe efectivo depende de la región elegida, volumen de mensajes, almacenamiento, consultas, retención de métricas, impuestos, Free Tier aplicable y precios vigentes. Cada despliegue debe generar su propia estimación antes de crear recursos.
+This figure is not a quote or a guaranteed cost for other users. The actual amount depends on the selected region, message volume, storage, queries, metric retention, taxes, applicable Free Tier, and current pricing. Each deployment should generate its own estimate before creating resources.
 
-## Stack tecnológico
+## Technology stack
 
-| Área | Tecnologías |
+| Area | Technologies |
 |---|---|
 | Firmware / Edge | C++, Arduino, PlatformIO, DHT, ArduinoJson, WiFiClientSecure, PubSubClient, NTP |
 | Cloud | AWS IoT Core, IoT Rules Engine, S3, IAM, CloudWatch, Budgets |
 | Data | Python, boto3, Polars, PyArrow, Parquet |
 | Analytics / ML | DuckDB, SQL, NumPy, scikit-learn, Matplotlib |
-| Visualización | Streamlit, Plotly |
+| Visualization | Streamlit, Plotly |
 
-## Estructura del repositorio
+## Repository structure
 
 ```text
 officepulse/
-|-- src/                         # firmware ESP32
-|-- include/                     # plantillas publicables de configuración IoT
+|-- src/                         # ESP32 firmware
+|-- include/                     # publishable IoT configuration templates
 |-- data-pipeline/
-|   |-- src/                     # ingesta, validación, EDA, features y ML
-|   |-- sql/                     # análisis DuckDB
-|   |-- dashboard/               # aplicación Streamlit
-|   `-- data/                    # RAW, CURATED, QUARANTINE y resultados
+|   |-- src/                     # ingestion, validation, EDA, features, and ML
+|   |-- sql/                     # DuckDB analysis
+|   |-- dashboard/               # Streamlit application
+|   `-- data/                    # RAW, CURATED, QUARANTINE, and results
 |-- Architecture.png
 |-- Circuit.svg
 |-- platformio.ini
 `-- README.md
 ```
 
-## Cómo ejecutar el proyecto
+## How to run the project
 
-Hay dos formas de utilizar el repositorio:
+There are two ways to use the repository:
 
-- **Reproducir el análisis incluido:** solo requiere Python y los archivos de `data-pipeline/data/raw`; no necesita hardware, cuenta AWS ni credenciales.
-- **Capturar datos propios:** requiere el hardware descrito, PlatformIO, una red Wi-Fi, recursos propios en AWS IoT/S3 y AWS CLI v2 para descargar los mensajes.
+- **Reproduce the included analysis:** only Python and the files in `data-pipeline/data/raw` are required; no hardware, AWS account, or credentials are needed.
+- **Capture your own data:** requires the described hardware, PlatformIO, a Wi-Fi network, your own AWS IoT/S3 resources, and AWS CLI v2 to download the messages.
 
-Los comandos siguientes están escritos para PowerShell en Windows. En Linux o macOS deben adaptarse las rutas del ejecutable del entorno virtual.
+The following commands are written for PowerShell on Windows. On Linux or macOS, the virtual environment executable paths must be adapted.
 
-### 1. Preparar y ejecutar el firmware
+### 1. Prepare and run the firmware
 
-Se requiere VSCode con la extensión PlatformIO y un dispositivo configurado en AWS IoT.
-Desde la raíz del repositorio:
+VSCode with the PlatformIO extension and a device configured in AWS IoT are required.
 
-1. Copiar `include/secrets.example.h` como `include/secrets.h` y completar las credenciales Wi-Fi y el endpoint del entorno AWS IoT propio.
-2. Copiar `include/aws_certs.example.h` como `include/aws_certs.h` y completar la CA, el certificado y la clave privada emitidos para el dispositivo propio.
-3. Durante la configuración inicial, revisar en `src/main.cpp` que `DEVICE_ID`, `AWS_IOT_CLIENT_ID` y `AWS_IOT_TOPIC` coincidan con el Thing, certificado, policy y rule creados en AWS.
-4. Ajustar `SESSION_ID` en `src/main.cpp` antes de cada captura. Para una sesión normal debe usarse el formato `baseline_N`, por ejemplo:
+From the repository root:
+
+1. Copy `include/secrets.example.h` as `include/secrets.h` and fill in the Wi-Fi credentials and endpoint for your own AWS IoT environment.
+2. Copy `include/aws_certs.example.h` as `include/aws_certs.h` and fill in the CA, certificate, and private key issued for your own device.
+3. During the initial setup, verify in `src/main.cpp` that `DEVICE_ID`, `AWS_IOT_CLIENT_ID`, and `AWS_IOT_TOPIC` match the Thing, certificate, policy, and rule created in AWS.
+4. Set `SESSION_ID` in `src/main.cpp` before each capture. For a normal session, use the `baseline_N` format, for example:
 
    ```cpp
    constexpr char SESSION_ID[] = "baseline_04";
    ```
 
-5. Compilar, cargar el firmware y abrir el monitor serial:
+5. Build, upload the firmware, and open the serial monitor:
 
    ```powershell
    pio run
@@ -279,53 +280,53 @@ Desde la raíz del repositorio:
    pio device monitor
    ```
 
-6. Mantener el dispositivo encendido durante el periodo de captura. La telemetría se publica en AWS IoT Core y se almacena como JSON RAW en Amazon S3.
+6. Keep the device powered on during the capture period. Telemetry is published to AWS IoT Core and stored as RAW JSON in Amazon S3.
 
-Las sesiones `baseline_N` se incorporan automáticamente al pipeline. `baseline_01`
-permanece como conjunto de entrenamiento y cualquier otro `baseline_N` se clasifica
-como validación normal. No es necesario modificar los archivos Python al capturar
-`baseline_03`, `baseline_04` o sesiones posteriores.
+`baseline_N` sessions are automatically incorporated into the pipeline. `baseline_01`
+remains the training dataset, while any other `baseline_N` is classified
+as normal validation data. It is not necessary to modify the Python files when capturing
+`baseline_03`, `baseline_04`, or later sessions.
 
-### 2. Preparar el entorno local
+### 2. Prepare the local environment
 
-Desde `data-pipeline/`, crear el entorno virtual e instalar las dependencias:
+From `data-pipeline/`, create the virtual environment and install the dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-`requirements.txt` instala también AWS CRT mediante `boto3[crt]`, necesario para que Boto3 pueda utilizar las credenciales temporales generadas por `aws login`. La creación del entorno y la instalación de dependencias solo son necesarias la primera vez o cuando cambie `requirements.txt`.
+`requirements.txt` also installs AWS CRT through `boto3[crt]`, which is required for Boto3 to use the temporary credentials generated by `aws login`. Creating the environment and installing dependencies is only necessary the first time or when `requirements.txt` changes.
 
-### 3. Configurar el acceso a AWS
+### 3. Configure AWS access
 
-Este paso solo es necesario para descargar capturas nuevas desde un bucket S3. Para reproducir los datos RAW incluidos en el repositorio puede omitirse por completo.
+This step is only required to download new captures from an S3 bucket. It can be skipped entirely when reproducing the RAW data already included in the repository.
 
-Antes de continuar:
+Before continuing:
 
-1. Instalar [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) por separado. Es una aplicación del sistema y no forma parte de `requirements.txt`. Verificar la instalación con:
+1. Install [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) separately. It is a system application and is not part of `requirements.txt`. Verify the installation with:
 
    ```powershell
    aws --version
    ```
 
-   La salida debe comenzar con `aws-cli/2`.
+   The output should begin with `aws-cli/2`.
 
-2. Contar con acceso al bucket que contiene la telemetría.
-3. Configurar `BUCKET_NAME`, `PREFIX` y la región en `src/download_raw.py` para que correspondan al entorno AWS propio.
-4. Utilizar una identidad con permisos para listar el bucket y descargar sus objetos, como mínimo `s3:ListBucket` y `s3:GetObject`.
+2. Have access to the bucket containing the telemetry.
+3. Configure `BUCKET_NAME`, `PREFIX`, and the region in `src/download_raw.py` so they match your own AWS environment.
+4. Use an identity with permissions to list the bucket and download its objects, at minimum `s3:ListBucket` and `s3:GetObject`.
 
-La configuración del bucket, el perfil y las credenciales se realiza una sola vez por entorno. Después de configurarla, cada nueva captura `baseline_N` solo requiere cambiar `SESSION_ID`, cargar el firmware y repetir la descarga y el procesamiento.
+The bucket, profile, and credentials only need to be configured once per environment. After that, each new `baseline_N` capture only requires changing `SESSION_ID`, uploading the firmware, and repeating the download and processing steps.
 
-El nombre del perfil es local y puede elegirse libremente. En los siguientes ejemplos se utiliza `officepulse-local`:
+The profile name is local and can be chosen freely. The following examples use `officepulse-local`:
 
 ```powershell
 $profileName = "officepulse-local"
 ```
 
-#### Opción A: inicio de sesión desde el navegador
+#### Option A: browser-based sign-in
 
-Esta opción utiliza las credenciales de acceso a la consola de un usuario IAM y genera credenciales temporales. No requiere crear una access key permanente.
+This option uses the console credentials of an IAM user and generates temporary credentials. It does not require creating a permanent access key.
 
 ```powershell
 aws login --profile $profileName
@@ -333,19 +334,19 @@ $env:AWS_PROFILE = $profileName
 aws sts get-caller-identity --profile $profileName
 ```
 
-El navegador solicitará el Account ID o alias de la cuenta, nombre del usuario IAM, contraseña y MFA si está habilitado. El soporte CRT que permite a Boto3 utilizar esta sesión ya se instala mediante `requirements.txt`.
+The browser will request the Account ID or account alias, IAM user name, password, and MFA if enabled. CRT support that allows Boto3 to use this session is already installed through `requirements.txt`.
 
-Referencia: [inicio de sesión local con `aws login`](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
+Reference: [local sign-in with `aws login`](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
 
-Si la sesión expira, ejecutar nuevamente:
+If the session expires, run:
 
 ```powershell
 aws login --profile $profileName
 ```
 
-#### Opción B: access key de un usuario IAM
+#### Option B: IAM user access key
 
-Esta opción configura un perfil mediante una Access Key ID y una Secret Access Key:
+This option configures a profile using an Access Key ID and Secret Access Key:
 
 ```powershell
 aws configure --profile $profileName
@@ -353,25 +354,25 @@ $env:AWS_PROFILE = $profileName
 aws sts get-caller-identity --profile $profileName
 ```
 
-`aws configure` solicitará la Access Key ID, Secret Access Key, región predeterminada y formato de salida. Las credenciales deben permanecer fuera del repositorio y nunca deben escribirse en el código ni agregarse a Git.
+`aws configure` will request the Access Key ID, Secret Access Key, default region, and output format. Credentials must remain outside the repository and must never be written into the code or added to Git.
 
-Referencia: [autenticación de AWS CLI con credenciales de usuario IAM](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-user.html).
+Reference: [AWS CLI authentication with IAM user credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-user.html).
 
-En ambas opciones, `get-caller-identity` permite verificar qué identidad se utilizará antes de acceder a S3. La variable `AWS_PROFILE` debe establecerse nuevamente al abrir una terminal de PowerShell nueva.
+In both options, `get-caller-identity` allows you to verify which identity will be used before accessing S3. The `AWS_PROFILE` variable must be set again when opening a new PowerShell terminal.
 
-### 4. Descargar la nueva captura
+### 4. Download the new capture
 
-Después de autenticar el perfil seleccionado, desde `data-pipeline/`:
+After authenticating the selected profile, from `data-pipeline/`:
 
 ```powershell
 .\.venv\Scripts\python.exe src\download_raw.py
 ```
 
-`download_raw.py` descarga los JSON nuevos desde S3 a `data/raw` y omite los archivos que ya existen localmente.
+`download_raw.py` downloads new JSON files from S3 into `data/raw` and skips files that already exist locally.
 
-### 5. Construir y analizar el dataset
+### 5. Build and analyze the dataset
 
-Ejecutar los scripts en este orden desde `data-pipeline/`:
+Run the scripts in the following order from `data-pipeline/`:
 
 ```powershell
 .\.venv\Scripts\python.exe src\build_dataset.py
@@ -381,29 +382,29 @@ Ejecutar los scripts en este orden desde `data-pipeline/`:
 .\.venv\Scripts\python.exe src\anomaly_detection.py
 ```
 
-Cada etapa realiza lo siguiente:
+Each stage performs the following:
 
-1. `build_dataset.py` valida los JSON, reconoce automáticamente todas las sesiones `baseline_N`, selecciona la ejecución principal y genera `officepulse_all.parquet` y un Parquet por sesión.
-2. `eda.py` genera estadísticas y gráficas para todas las sesiones encontradas.
-3. `analyze_baseline.py` selecciona automáticamente el `baseline_N` con el número más alto y ejecuta el análisis descriptivo en DuckDB.
-4. `feature_engineering.py` remuestrea las sesiones, crea las variables temporales y asigna los grupos de entrenamiento o validación.
-5. `anomaly_detection.py` entrena con `baseline_01`, evalúa las sesiones de validación y las pruebas controladas, y guarda los scores y predicciones.
+1. `build_dataset.py` validates the JSON files, automatically recognizes all `baseline_N` sessions, selects the primary run, and generates `officepulse_all.parquet` plus one Parquet file per session.
+2. `eda.py` generates statistics and charts for all detected sessions.
+3. `analyze_baseline.py` automatically selects the `baseline_N` with the highest number and runs descriptive analysis in DuckDB.
+4. `feature_engineering.py` resamples the sessions, creates temporal variables, and assigns training or validation groups.
+5. `anomaly_detection.py` trains on `baseline_01`, evaluates the validation sessions and controlled tests, and stores the scores and predictions.
 
-### 6. Abrir el dashboard
+### 6. Open the dashboard
 
-Después de generar los datasets y resultados del modelo:
+After generating the datasets and model results:
 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run dashboard\app.py
 ```
 
-El dashboard descubre automáticamente las sesiones disponibles y muestra nombres como “Referencia 03” o “Baseline 03”, según el idioma seleccionado.
+The dashboard automatically discovers the available sessions and displays names such as “Reference 03” or “Baseline 03”, depending on the selected language.
 
-## Limitaciones
+## Limitations
 
-- El entrenamiento normal contiene 46 observaciones ML-ready y cubre pocas sesiones controladas.
-- No existe ground truth minuto a minuto para calcular métricas supervisadas.
-- El DHT11 es adecuado para el MVP, no un sensor industrial.
-- El dashboard trabaja localmente sobre Parquet procesado y no representa streaming en tiempo real.
-- La configuración de recursos AWS no está versionada como infraestructura como código; el repositorio contiene firmware, pipeline, datos y diagrama.
-- La detección de anomalías es un prototipo funcional sobre este dataset, no un modelo productivo.
+- The normal training dataset contains 46 ML-ready observations and covers only a small number of controlled sessions.
+- There is no minute-by-minute ground truth for calculating supervised metrics.
+- The DHT11 is appropriate for the MVP, not an industrial-grade sensor.
+- The dashboard runs locally on processed Parquet data and does not represent real-time streaming.
+- AWS resource configuration is not versioned as infrastructure as code; the repository contains firmware, pipeline, data, and the architecture diagram.
+- Anomaly detection is a functional prototype for this dataset, not a production model.
